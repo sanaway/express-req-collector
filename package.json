@@ -1,0 +1,19 @@
+{
+  "name": "express-req-collector",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanaway/express-req-collector.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sanaway/express-req-collector/issues"
+  },
+  "homepage": "https://github.com/sanaway/express-req-collector#readme"
+}
