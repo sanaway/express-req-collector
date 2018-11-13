@@ -8,6 +8,7 @@ class Collector{
         this.cache = [];
         this.callback = undefined;
         this.timerId = undefined;
+        this.onErrorCB = undefined;
     }
 
     input(obj){
@@ -18,6 +19,15 @@ class Collector{
 
     setCallback(cb){
         this.callback = cb;
+    }
+
+    setOnErrorCB(cb){
+        this.onErrorCB = cb;
+    }
+
+    onError(error){
+        if (this.onErrorCB)
+            this.onErrorCB(error);
     }
 
     setInterval(interval){
@@ -34,8 +44,17 @@ class Collector{
                 if (!this.callback)
                     return;
                 let type = {}.toString.call(this.callback);
-                if (type === '[object Function]' || type === "[object AsyncFunction]")
-                    this.callback(arr);
+                if (type === '[object Function]'){
+                    try {
+                        this.callback(arr);
+                    } catch(error){
+                        this.onError(error);
+                    }
+                } else if (type === "[object AsyncFunction]"){
+                    this.callback(arr).catch(error=>{
+                        this.onError(error);
+                    })
+                }
             });
         }, interval);
     }
@@ -68,6 +87,10 @@ module.exports = {
             static_instance.destroy();
         static_instance = undefined;
     },
+    setOnErrorCB:(cb)=>{
+        if (static_instance)
+            static_instance.setOnErrorCB(cb);
+    },
     middleware: (req, res, next)=>{
         let split = req.url.split("?");
         res.collect_data = {
@@ -89,7 +112,7 @@ module.exports = {
             obj.statusCode = res.statusCode;
             obj.success = (Math.floor(res.statusCode / 100) === 2 || res.statusCode === 304) ? 1 : 0;
             if (static_instance)
-                static_instance.input(obj).catch(console.error);
+                static_instance.input(obj);
         });
         next();
     },
