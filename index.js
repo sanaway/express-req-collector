@@ -9,6 +9,7 @@ class Collector{
         this.callback = undefined;
         this.timerId = undefined;
         this.onErrorCB = undefined;
+        this.filterOutEndpoints = [];
     }
 
     input(obj){
@@ -23,6 +24,29 @@ class Collector{
 
     setOnErrorCB(cb){
         this.onErrorCB = cb;
+    }
+
+    setFilterOutEndpoints(endpoints){
+        if (!Array.isArray(endpoints))
+            return;
+        this.filterOutEndpoints = [];
+        endpoints.forEach(ep=>{
+            if (typeof ep !== 'string')
+                return;
+            this.filterOutEndpoints.push(`${ep.startsWith("/")?"":"/"}${ep}${ep.endsWith("/")?"":"/"}`)
+        })
+    }
+
+    filterout(url){
+        if (typeof url !== 'string' || this.filterOutEndpoints.length <= 0){
+            return;
+        }
+        if (!url.endsWith("/")){
+            url += "/"
+        }
+        return this.filterOutEndpoints.some(ep=>{
+            return url.indexOf(ep) >= 0;
+        });
     }
 
     onError(error){
@@ -91,11 +115,21 @@ module.exports = {
         if (static_instance)
             static_instance.setOnErrorCB(cb);
     },
+    setFilterOutEndpoints:(arr)=>{
+        if (static_instance)
+            static_instance.setFilterOutEndpoints(arr);
+    },
     middleware: (req, res, next)=>{
+        if (!static_instance)
+            return next();
         let split = req.url.split("?");
+        let url = split[0];
+        if (static_instance.filterout(url))
+            return next();
+        
         res.collect_data = {
             method: req.method,
-            url: split[0],
+            url: url,
             query: split.length > 1 ? split[1] : "",
             ip: req.ip ? req.ip.split(':').pop() : "",
             timestamp: new Date().getTime()

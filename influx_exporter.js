@@ -6,10 +6,15 @@ let LOCKER = new AsyncLock();
 const TAG = "influx-exporter";
 
 class InfluxWriter{
-    constructor(uri, database){
+    constructor(uri, database, params){
         this.influx = new Influx.InfluxDB(uri);
         this.database = database;
         this.inited = -1;
+        this.onlyCollectCount = false;
+        if (params){
+            if (typeof params.onlyCollectCount === 'boolean')
+                this.onlyCollectCount = params.onlyCollectCount;
+        }
     }
 
     init(){
@@ -40,6 +45,10 @@ class InfluxWriter{
         }
         await this.influx.writeMeasurement(measurement, points, {database: this.database});
     }
+
+    recordAllRequests(){
+        return this.onlyCollectCount === false;
+    }
 }
 
 
@@ -57,7 +66,7 @@ module.exports = (params) => {
     }
     let identity = params.user ? `${params.user}:${params.password}@` : ""
     let uri = `http://${identity}${params.url}:${port}`;
-    let influx = new InfluxWriter(uri, params.database);
+    let influx = new InfluxWriter(uri, params.database, params);
     return async (reqs)=>{
         if (!Array.isArray(reqs))
             return;
@@ -98,7 +107,6 @@ module.exports = (params) => {
         arr = arr
         if (arr.length <= 0)
             return;
-        await influx.writePoints("requests", arr);
         await influx.writePoints("reliability", [{
             timestamp: new Date(),
             fields:{
@@ -106,6 +114,9 @@ module.exports = (params) => {
                 total: counter.success + counter.faild
             }
         }]);
+        if (influx.recordAllRequests()){
+            await influx.writePoints("requests", arr);
+        }
     }
 }
 /*

@@ -4,7 +4,7 @@ let bodyParser = require("body-parser");
 let ReqCollector = require("../index");
 let Influx = require("influx");
 
-const INFLUX_URL = process.env.INFLUX_URL;
+const INFLUX_URL = process.env.INFLUX_URL||"10.78.26.51";
 const INFLUX_DATABASE = "test_db";
 
 let static_app;
@@ -25,15 +25,19 @@ function getExpressApp(){
     let exporter = (INFLUX_URL) ? 
         ReqCollector.exporter.influx({
             url: INFLUX_URL,
-            database: INFLUX_DATABASE
+            database: INFLUX_DATABASE,
+            onlyCollectCount:true
         }) : (reqs)=>{
             if (!localCache)
                 localCache = reqs;
         };
     
     ReqCollector.init(exporter, 5000);
-    
+    ReqCollector.setFilterOutEndpoints(["echo"]);
     static_app.use(ReqCollector.middleware);
+    static_app.get("/echo", (req, res)=>{
+        res.status(204).send();
+    })
     static_app.get("/test_get", (req, res)=>{
         res.status(200).send();
     })
@@ -55,6 +59,11 @@ function getTestServer(){
 
 describe("emulate request: ", function() {
     let testService =  getTestServer();
+
+    it(`GET /echo`, function(done){
+        testService.get(`/echo`)
+        .expect(204, done);
+    });
 
     it(`GET /test_get`, function(done){
         shouldSuccess += 1;
